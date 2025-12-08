@@ -51,7 +51,7 @@ async def increase_count_clicks(slug: str) -> None:
         await session.execute(
             update(Url)
             .where(Url.slug == slug)
-            .values(number_clicks = Url.count_clicks + 1)
+            .values(count_clicks = Url.count_clicks + 1)
         )
         
         await session.commit()
