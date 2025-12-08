@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-import uvicorn
 
-from api.shortener import router as shortener_router
-from db.crud import async_main
+from src.app.api.shortener import router as shortener_router
+from src.app.db.db import engine
+from src.app.db.models import Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await async_main()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
 
 app = FastAPI(
@@ -17,9 +18,3 @@ app = FastAPI(
 )
 
 app.include_router(shortener_router)
-
-if __name__ == "__main__":
-    uvicorn.run('main:app', reload=True)
-
-
-

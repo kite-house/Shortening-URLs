@@ -1,12 +1,15 @@
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Depends
 from fastapi.responses import RedirectResponse
 from typing import Annotated
-from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound, PendingRollbackError
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import AfterValidator
 
-from schemas.urls import UrlSchema
-from services.generate_short_url import create_url, UrlLength
-from db import crud 
+from src.app.schemas.urls import UrlSchema
+from src.app.services.generate_short_url import create_url, UrlLength
+from src.app.db import crud 
+from src.app.dependencies import get_session
+from src.app.exceptions import URLAlreadyRegistered
 
 router = APIRouter()
 
@@ -20,36 +23,40 @@ def checkCustomSlugValid(custom_slug: str):
         if custom_slug in apiroute.path:
             raise ValueError('This address is registered by the system!')
 
+    return custom_slug
 
 @router.post('/cutback', tags = ['Сut Back 🛠️'])
 async def cutback(
+    session: Annotated[AsyncSession, Depends(get_session)],
     long_url: UrlSchema, 
     length: Annotated[int | None, Query(ge=UrlLength.MIN_LENGTH, le=UrlLength.MAX_LENGTH)] = None, 
     custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None
 ) -> dict:
     if not custom_slug:
-        slug = await create_url(length)
+        slug = await create_url(session, length)
 
     else:
         slug = custom_slug
     try:
         await crud.write_url(
             slug = slug,
-            long_url = long_url.url
+            long_url = long_url.url,
+            session = session
         )
-    except IntegrityError:
+    except URLAlreadyRegistered:
         try:
-            short_url = await crud.get_url(long_url = long_url.url)
+            short_url = await crud.get_url(long_url = long_url.url, session = session)
         except NoResultFound:
             raise HTTPException(status_code = status.HTTP_208_ALREADY_REPORTED, detail = f'This slug has already been registered!')
+        
         raise HTTPException(status_code = status.HTTP_208_ALREADY_REPORTED, detail = f'This URL is already registered in the service, using the link: {short_url.slug}')
 
     return {'slug' : slug, "long_url": long_url.url}
 
 @router.get('/info/{url}', tags = ['Information 📑'])
-async def info(url: str) -> dict:
+async def info(session: Annotated[AsyncSession, Depends(get_session)], url: str) -> dict:
     try:
-        url = await crud.get_url(slug = url)
+        url = await crud.get_url(slug = url, session = session)
     except NoResultFound:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Link not found!')
     
@@ -61,8 +68,8 @@ async def info(url: str) -> dict:
     }
 
 @router.get('/top', tags = ['Information 📑'])
-async def top(quantity: Annotated[int, Query(ge=1)] = 10) -> list[dict]:
-    results = await crud.get_urls()
+async def top(session: Annotated[AsyncSession, Depends(get_session)], quantity: Annotated[int, Query(ge=1)] = 10) -> list[dict]:
+    results = await crud.get_urls(session)
 
     results = reversed(results[:quantity])
     
@@ -81,11 +88,11 @@ async def top(quantity: Annotated[int, Query(ge=1)] = 10) -> list[dict]:
 
 
 @router.get('/{url}', tags = ['Redirect 🔗'])
-async def redirect(url: str) -> RedirectResponse:
+async def redirect(session: Annotated[AsyncSession, Depends(get_session)], url: str) -> RedirectResponse:
     try:
-        short_url = await crud.get_url(slug = url)
+        short_url = await crud.get_url(slug = url, session = session)
     except NoResultFound:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Link not found! Create link!')
     
-    await crud.increase_count_clicks(url)
+    await crud.increase_count_clicks(url, session)
     return RedirectResponse(short_url.long_url, status_code = status.HTTP_302_FOUND)
