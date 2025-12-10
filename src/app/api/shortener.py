@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Query, Depends
 from fastapi.responses import RedirectResponse
 from typing import Annotated
-from sqlalchemy.exc import IntegrityError, NoResultFound, PendingRollbackError
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import AfterValidator
 
@@ -37,6 +37,7 @@ async def cutback(
 
     else:
         slug = custom_slug
+
     try:
         await crud.write_url(
             slug = slug,

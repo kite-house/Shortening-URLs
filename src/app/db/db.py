@@ -1,15 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-import os
 
-DATABASE_USER = os.environ.get('DATABASE_USER')
-DATABASE_PASS = os.environ.get('DATABASE_PASS')
-DATABASE_HOST = os.environ.get('DATABASE_HOST')
-DATABASE_PORT = os.environ.get('DATABASE_PORT')
-DATABASE_NAME = os.environ.get('DATABASE_NAME')
+from src.app.db.config import settings
 
+engine = create_async_engine(url = settings.DB_URL)
 
-engine = create_async_engine(
-    url = f"mysql+aiomysql://{DATABASE_USER}:{DATABASE_PASS}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
-)
-
-async_session = async_sessionmaker(engine, expire_on_commit=False)
+async_session = async_sessionmaker(engine, autoflush=True, expire_on_commit=False)

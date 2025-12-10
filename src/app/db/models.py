@@ -11,6 +11,6 @@ class Url(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     slug: Mapped[str] = mapped_column(String(50), unique=True)
-    long_url: Mapped[str] = mapped_column(String(2083), unique=True)
+    long_url: Mapped[str] = mapped_column(String(700), unique=True)
     count_clicks: Mapped[int] = mapped_column(default=0)
     date_created: Mapped[datetime]

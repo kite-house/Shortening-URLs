@@ -16,10 +16,10 @@ class UrlLength:
         return random.randint(cls.MIN_LENGTH, cls.MAX_LENGTH)
 
 def ValidOutputUrl(func):
-    async def wrapper(session: AsyncSession, *args, **kwargs):
+    async def wrapper(*args, **kwargs):
         url = await func(*args, **kwargs)
         try:
-            await get_url(slug = url, session = session)
+            await get_url(slug = url, session = args[0])
         except NoResultFound:
             return url
         return await wrapper(*args, **kwargs)
