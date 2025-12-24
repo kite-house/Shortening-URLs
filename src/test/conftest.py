@@ -1,37 +1,32 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from typing import AsyncGenerator
 from httpx import AsyncClient, ASGITransport
-import pytest_asyncio
+import pytest
 
 from src.app.main import app
 from src.app.db.db import settings
 from src.app.db.models import Base
+from src.app.dependencies import get_session
 
 engine = create_async_engine(url = settings.DB_URL)
 
 async_session = async_sessionmaker(engine, autoflush=True, expire_on_commit=False)
 
-@pytest_asyncio.fixture(scope = 'session', autouse = True)
+@pytest.fixture(scope = 'session', autouse = True)
 async def setup_db():
+    assert settings.MODE == 'TEST'
+
     async with engine.begin() as conn:
-        assert settings.MODE == 'TEST'
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
-        yield
+    yield
 
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-        
 
-@pytest_asyncio.fixture(scope="function")
-async def session():
-    async with async_session() as session:
-        try:
-            yield session
-        finally:
-            session.close()
-
-@pytest_asyncio.fixture(scope = 'session')
+@pytest.fixture(scope = 'session')
 async def ac() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport = ASGITransport(app=app), base_url = "http://test") as ac: 
-        yield ac
+        yield ac     
+
