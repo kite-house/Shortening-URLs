@@ -1,4 +1,5 @@
-## 🚀 FastAPI Shortening-URLs
+## 🚀 FastAPI URL Shortener<img width="576" height="171" alt="image" src="https://github.com/user-attachments/assets/21f814bc-0326-4bd5-a9a4-d2519bed4689" />
+
 
 Высокопроизводительный сервис для сокращения ссылок на **Python 3.11 + FastAPI**.  
 Проект полностью контейнеризирован (Docker + Docker Compose) и готов к развёртыванию и масштабированию.
